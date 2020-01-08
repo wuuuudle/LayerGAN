@@ -2,11 +2,12 @@ import tensorflow as tf
 from dataLoader import DataLoader
 from model import init_model
 import numpy as np
+import math
 
-MAX_SEQ_LEN = 500
+MAX_SEQ_LEN = 1299
 GEN_EMBEDDING_DIM = 32
 GEN_HIDDEN_DIM = 32
-VOCAB_SIZE = 3590 + 2
+VOCAB_SIZE = 4044 + 2
 
 
 def ppx(y_true, y_pred):
@@ -16,10 +17,11 @@ def ppx(y_true, y_pred):
     return perplex
 
 
-data = DataLoader(VOCAB_SIZE, MAX_SEQ_LEN, 'text.txt')
+data = DataLoader(VOCAB_SIZE, MAX_SEQ_LEN, 'wolalala.txt')
 x, y = data.read_gen_all()
 dis, gen = init_model(GEN_EMBEDDING_DIM, GEN_HIDDEN_DIM, VOCAB_SIZE, MAX_SEQ_LEN)
 # pre-train gen
+# gen.load_weights('pre-gen8.h5')
 gen.compile(loss=ppx, optimizer='adam', metrics=['accuracy'])
 gen.fit(x, y, batch_size=512, epochs=500, validation_split=0.1, callbacks=[
     tf.keras.callbacks.EarlyStopping(monitor='loss', patience=2, verbose=2, mode='min'),
@@ -30,6 +32,7 @@ gen.fit(x, y, batch_size=512, epochs=500, validation_split=0.1, callbacks=[
 
 # pre-train dis
 dis.get_layer('embedding').trainable = False  # Freeze embedding
+# dis.load_weights('pre-dis.h5')
 true, fake = data.read_dis_data(gen)
 X = np.concatenate([true, fake])
 Y = np.zeros([X.shape[0], 2])
@@ -45,7 +48,7 @@ dis.fit(X, Y, epochs=1, shuffle=True, batch_size=32, callbacks=[
 
 # train_all
 gen.get_layer('embedding').trainable = True
-x, reward = data.rollout_reward(gen, dis, 2)
+x, y, reward = data.rollout_reward(gen, dis, 2)
 gen.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 gen.fit(x, y, epochs=1, batch_size=256, sample_weight=reward, callbacks=[
     tf.keras.callbacks.EarlyStopping(monitor='loss', patience=2, verbose=2, mode='min'),

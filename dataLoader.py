@@ -50,20 +50,21 @@ class DataLoader():
     def split(self):
         with open(self.path, encoding='utf8') as f:
             text = f.read()
-            a = [chr + '。' for chr in text.split('。')]
-            lens = [len(chr) for chr in a]
-            sentence_list = []
-            i = 0
-            while i < len(a):
-                j = i + 1
-                while True:
-                    if reduce(lambda x, y: x + y, lens[i:j]) > 500:
-                        sentence_list.append(str2int(''.join(a[i:j - 1])))
-                        break
-                    j += 1
-                    if j > len(a):
-                        break
-                i = j
+            # a = [chr + '。' for chr in text.split('。')]
+            # lens = [len(chr) for chr in a]
+            # sentence_list = []
+            # i = 0
+            # while i < len(a):
+            #     j = i + 1
+            #     while True:
+            #         if reduce(lambda x, y: x + y, lens[i:j]) > 500:
+            #             sentence_list.append(str2int(''.join(a[i:j - 1])))
+            #             break
+            #         j += 1
+            #         if j > len(a):
+            #             break
+            #     i = j
+            sentence_list = [str2int(i) for i in text.split('\n\n')]
         print('Loading data...')
         for num, sen in enumerate(sentence_list):
             for i in range(len(sen)):
@@ -105,12 +106,15 @@ class DataLoader():
         true = []
         fake = []
         a = (self.x == 0).argmax(axis=1)
+        sizes = len(a)
         for i, v in enumerate(a):
-            temp = self.x[i]
-            temp[v] = self.y[i]
+            temp = self.x[i].copy()
+            temp[v] = self.y[i][0]
             true.append(temp)
-            temp[v] = y_fake[i]
+            temp = self.x[i].copy()
+            temp[v] = y_fake[i][0]
             fake.append(temp)
+            print('\r%d/%d' % (i, sizes - 1), end='')
         return np.array(true), np.array(fake)
 
     def rollout_reward(self, gen: tf.keras.Model, dis: tf.keras.Model, candidate):
@@ -142,7 +146,7 @@ class DataLoader():
         a = (new_input_x == 0).argmax(axis=1)
         for i, v in enumerate(a):
             temp = new_input_x[i]
-            temp[v] = new_input_y[i]
+            temp[v] = new_input_y[i][0]
             I.append(temp)
         I = np.array(I)
         lens = len(self.x)
@@ -153,4 +157,11 @@ class DataLoader():
             [reward.append(o) for o in out]
         out = dis.predict(I[sizes * 10240:, :])[:, 0]
         [reward.append(o) for o in out]
-        return I, np.array(reward)
+        return new_input_x, new_input_y, np.array(reward)
+
+
+if __name__ == '__main__':
+    fin = open('wolalala.txt', 'r', encoding='utf8')
+    text = fin.read()
+    fin.close()
+    generate_dic(text)
